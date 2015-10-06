@@ -1,0 +1,148 @@
+function [P,T_test,SPE,T_alpha,SPE_alpha,contri6,t4,x,test_x,Latent]=PCA(x,test_x,N,monitortime)
+
+% 作者，BUCT，自动化系，葛文双/Devin Ge
+% 一些变量的说明：
+%   x 是 n*m 的矩阵,其中 n 是一个测量变量的不同时刻的采样值,m 是有m个传感器；即行是一个样本
+%   x,test_x 是归一化后的值
+%   N 是测试数据集的行数
+
+%   P 是负载矩阵,大小为m*kk，kk为主元的个数，而且P是正常工况下的PCA模型，与测试数据无关
+%   T_test 是T^2统计量式子左边的计算结果，SPE是 e'*e 的结果
+%   T_alpha 是T^2统计量的控制限，SPE_alpha 是SPE的控制限
+%   monitortime表示在该时刻绘制的贡献图，因为贡献图都是某一时刻的
+% 一些说明：
+%   本程序的协方差分解略有不同，可以利用MATLAB自带函数检验
+
+%%
+x_temp=x;  % 为了测试数据的归一化
+%**************对数据进行标准化*************
+% 对训练数据进行按列归一化
+row=size(x,1);
+column=size(x,2);
+mean_x=mean(x);  % 每一列的均值
+var_x=var(x);  % 每一列的方差
+for i=1:row
+    for j=1:column
+        if var_x(j)~=0   % 这里栽过跟头
+            x(i,j)=(x(i,j)-mean_x(j))/sqrt(var_x(j));
+        end
+    end
+end
+% 对测试数据进行归一化
+row1=size(test_x,1);
+column1=size(test_x,2);
+mean_test_x=mean(x_temp);  % 正常数据每一列的均值
+var_test_x=var(x_temp);  % 正常数据每一列的方差
+for i=1:row1
+    for j=1:column1
+        if var_test_x(j)~=0
+            test_x(i,j)=(test_x(i,j)-mean_test_x(j))/sqrt(var_test_x(j));
+        end
+    end
+end
+%%
+% filter=3;
+% for i=1:column
+%     for j=2:row-1
+%         x(j,i)=sum(x(j-1:j+1,i))/filter;
+%     end
+% end
+% for i=1:column1
+%     for j=2:row1-1
+%         test_x(j,i)=sum(test_x(j-1:j+1,i))/filter;
+%     end
+% end
+% % 小波降噪
+% wname='dmey';
+% for i=1:size(x,2)
+%     [C,L]=wavedec(x(:,i),4,wname);  
+%     A3(:,i)=wrcoef('a',C,L,wname,4);
+% end
+% for i=1:size(test_x,2)
+%     [C1,L1]=wavedec(test_x(:,i),4,wname);
+%     A31(:,i)=wrcoef('a',C1,L1,wname,4);
+% end
+% x=A3;
+% test_x=A31;
+% 带移动窗的小波
+
+%%
+%**********对标准化后的数据进行协方差分解***********
+S=x'*x/(row-1);
+[e,d,M]=svd(S);
+% [e,d]=eig(S);   % e是特征向量，d是特征值
+% d=diag(d);
+% d=d(end:-1:1); % 保证特征值从大到小排序
+% e=fliplr(e);
+%%
+%*****************选择主元**************************
+% 这里利用累计方差贡献率的方法
+Latent=diag(d);   % 将d从矩阵形式变换为列向量的形式
+SUM=0;
+for i=1:length(Latent)
+    SUM=SUM+Latent(i);
+    percent=SUM/sum(Latent);
+    if(percent>=0.85)
+        kk=i;
+        break;
+    end
+end
+disp('主元个数为');disp(kk);
+disp('***********************************************');
+%*********************构造 P 矩阵*********************
+P=e(:,1:kk);     % P 的维数是m*kk
+
+%%
+%****************计算T^2统计量，并确定控制限*****************
+% 确定控制限
+alpha1=0.99;  % 置信度
+n=row; 
+F=finv(alpha1,kk,(n-kk));
+T_alpha=kk*(n-1)*(n+1)*F/(n*(n-kk));  % F 指 F(kk,n-kk),alpha1的F分布
+% 计算T^2统计量
+D=d(1:kk,1:kk);
+T_test=zeros(N,1);
+for i=1:N
+    T_test(i)=test_x(i,:)*P*inv(D)*P'*test_x(i,:)';
+end
+disp('**********************************************');
+%****************计算SPE统计量，并确定控制限*****************
+% 确定控制限
+m=column;        % 样本点的个数
+theta1=sum(Latent(kk+1:m)); 
+theta2=sum(Latent(kk+1:m).^2);
+theta3=sum(Latent(kk+1:m).^3);
+h0=1-2*theta1*theta3/(3*theta1^2);
+
+alpha2=0.99;  % 置信度
+C=norminv(alpha2,0,1);
+SPE_alpha=theta1*(((C*sqrt(2*theta2*h0^2))/theta1)+1+(theta2*h0*(h0-1))/theta1^2)^(1/h0);
+
+% 计算SPE统计量
+SPE=zeros(N,1);
+for i=1:N
+    SPE(i)=(test_x(i,:)'-P*P'*test_x(i,:)')'*(test_x(i,:)'-P*P'*test_x(i,:)');
+%       SPE(i)=(test_x(i,:)-test_x(i,:)*P*P')*(test_x(i,:)-test_x(i,:)*P*P')';
+end
+%%  利用贡献图确定故障的样本点的位置
+%****************************************
+% 下面基于T^2的贡献图法
+t2=zeros(1,m); kexi=eye(m);
+t1=P*D*P';
+for i=1:m
+    t2(i)=test_x(monitortime,:)*t1*kexi(:,i)*kexi(:,i)'*test_x(monitortime,:)';
+end
+t3=sum(t2);
+t4=t2/t3;   % 求百分比
+% 下面利用SPE的贡献图法
+contri1=eye(m);
+contri2=contri1-P*P';
+contri3=zeros(1,m);
+for i=1:m
+    contri3(i)=contri1(:,i)'*contri2*test_x(200,:)';  
+    % 这一句中测试集的行一般大于列的个数，否则出错
+end
+contri4=contri3.^2;
+contri5=sum(contri4);
+contri6=contri4/contri5;  % 得到contri4已经可以了，这一步是将贡献率转换成百分比的形式
+
