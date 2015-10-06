@@ -23,7 +23,7 @@ mean_x=mean(x);  % 每一列的均值
 var_x=var(x);  % 每一列的方差
 for i=1:row
     for j=1:column
-        if var_x(j)~=0   % 这里栽过跟头
+        if var_x(j)~=0   % 这里需要注意除0
             x(i,j)=(x(i,j)-mean_x(j))/sqrt(var_x(j));
         end
     end
@@ -52,19 +52,6 @@ end
 %         test_x(j,i)=sum(test_x(j-1:j+1,i))/filter;
 %     end
 % end
-% % 小波降噪
-% wname='dmey';
-% for i=1:size(x,2)
-%     [C,L]=wavedec(x(:,i),4,wname);  
-%     A3(:,i)=wrcoef('a',C,L,wname,4);
-% end
-% for i=1:size(test_x,2)
-%     [C1,L1]=wavedec(test_x(:,i),4,wname);
-%     A31(:,i)=wrcoef('a',C1,L1,wname,4);
-% end
-% x=A3;
-% test_x=A31;
-% 带移动窗的小波
 
 %%
 %**********对标准化后的数据进行协方差分解***********
@@ -144,5 +131,5 @@ for i=1:m
 end
 contri4=contri3.^2;
 contri5=sum(contri4);
-contri6=contri4/contri5;  % 得到contri4已经可以了，这一步是将贡献率转换成百分比的形式
+contri6=contri4/contri5;  % 这一步是将贡献率转换成百分比的形式
 
