@@ -1,6 +1,6 @@
 function [P,T_test,SPE,T_alpha,SPE_alpha,contri6,t4,x,test_x,Latent]=PCA(x,test_x,N,monitortime)
 
-% 作者，BUCT，自动化系，葛文双/Devin Ge
+% Written by Devin Ge
 % 一些变量的说明：
 %   x 是 n*m 的矩阵,其中 n 是一个测量变量的不同时刻的采样值,m 是有m个传感器；即行是一个样本
 %   x,test_x 是归一化后的值
