@@ -98,5 +98,3 @@ false_dectionSPE=count22/(N-160)
 % figure(2);
 % subplot(121),bar(t4),title('T^2统计量贡献图');
 % subplot(122),bar(contri6),title('SPE统计量贡献图');
-figure(3)
-boxplot(test_x)
