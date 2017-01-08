@@ -1,16 +1,5 @@
 % Write by Devin Ge, BUCT
-% 
-% 一些变量的说明：
-%   x 是 n*m 的矩阵,其中 n 是一个测量变量的不同时刻的采样值,m 是有m个传感器,即行是一个样本
-%   x,test_x 是归一化后的值
-%   N 是测试数据集的行数
 
-%   P 是负载矩阵,大小为m*kk，kk为主元的个数
-%   T_test 是T^2统计量式子左边的计算结果，SPE是 e'*e 的结果
-%   T_alpha 是T^2统计量的控制限，SPE_alpha 是SPE的控制限
-%   contri4 是每个变量对SPE的贡献值, contri6 是 contri4 贡献率转换成百分比的形式
-%   t2 是每个变量对T^2统计量的贡献值, t4 是 t2 贡献率转换成百分比的形式
-%   monitortime表示在该时刻绘制的贡献图，因为贡献图都是某一时刻的
 %%
 clear all
 clc
@@ -27,7 +16,7 @@ test_x=dataset2(1:5:4800,[1:6,9:11,13,14,16,18,19,21,22]);  % 在线监控时的
 N=size(test_x,1);
 monitortime=170; % 第161th 采样点加入故障
 
-%% 调用自编的PCA函数
+%% 调用PCA函数
 [P,T_test,SPE,T_alpha,SPE_alpha,contri6,t4,x,test_x,Latent]=PCA(x,test_x,N,monitortime);
 % [pc,score,latent,tsquare] = princomp(zscore(x));
 %%  绘制必要的曲线图形
@@ -45,53 +34,6 @@ SPE_alpha=SPE_alpha*(ones(size(x_row)));
 plot(x_row,SPE_alpha,'r-','LineWidth',2.5),hold on
 plot(SPE,'b-');  xlabel('Samples');ylabel('SPE-statistic');
 legend('Thershold','Statistic');
-
-% 误报率或者故障检出率
-count=0; count11=0;
-for i=1:N
-    if i<=160
-        if T_test(i)>T_alpha(i)
-            count=count+1;
-        end
-    else
-        if T_test(i)>T_alpha(i)
-            count11=count11+1;
-        end
-    end
-end
-false_alarmT=count/160
-false_dectionT=count11/(N-160)
-count2=0;  count22=0;
-for i=1:N
-    if i<=160
-        if SPE(i)>SPE_alpha(i)
-            count2=count2+1;
-        end
-    else
-        if SPE(i)>SPE_alpha(i)
-            count22=count22+1;
-        end
-    end
-end
-false_alarmSPE=count2/160
-false_dectionSPE=count22/(N-160)
-
-% % 以下是计算正常工况的误报率
-% count2=0;count21=0;
-% for i=1:N
-%         if T_test(i)>T_alpha(i)
-%             count2=count2+1;
-%         end
-%  
-% end
-% for i=1:N
-%         if SPE(i)>SPE_alpha(i)
-%             count21=count21+1;
-%         end
-%  
-% end
-% false_alarmT=count2/N
-% false_alarmSPE=count21/N
 %%
 % figure(2);
 % subplot(121),bar(t4),title('T^2统计量贡献图');
